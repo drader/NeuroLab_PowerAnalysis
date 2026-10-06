@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Primer nöron kültürü deneyleri için G*Power yöntemiyle denek (gebe dişi) sayısı hesaplayıcı.">
+<title>Denek Sayısı Hesaplayıcı</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --bg:#f3f5f2; --surface:#ffffff; --surface-2:#eef1ec; --ink:#1b2430; --muted:#5b6670;
+  --line:#d6dcd4; --accent:#2f6f5e; --accent-ink:#ffffff; --accent-soft:#dcebe5;
+  --warn:#9a5b12; --warn-soft:#f7ead6; --bad:#a23a32; --bad-soft:#f6e1de; --good:#2f6f5e;
+  --disabled:#9aa3a8;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#111518; --surface:#181e22; --surface-2:#1f262b; --ink:#e4e9ec; --muted:#9aa6ae;
+    --line:#2c353b; --accent:#5cbf9f; --accent-ink:#0d1a15; --accent-soft:#1d3a31;
+    --warn:#e3a85c; --warn-soft:#3a2b17; --bad:#ec8a80; --bad-soft:#3d1f1c; --good:#5cbf9f;
+    --disabled:#5d686f;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#111518; --surface:#181e22; --surface-2:#1f262b; --ink:#e4e9ec; --muted:#9aa6ae;
+  --line:#2c353b; --accent:#5cbf9f; --accent-ink:#0d1a15; --accent-soft:#1d3a31;
+  --warn:#e3a85c; --warn-soft:#3a2b17; --bad:#ec8a80; --bad-soft:#3d1f1c; --good:#5cbf9f;
+  --disabled:#5d686f;
+}
+*{box-sizing:border-box}
+body{margin:0}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:15px;line-height:1.5;padding-inline:16px;padding-block:24px 48px}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:24px}
+header h1{font-size:1.65rem;line-height:1.2;margin:0 0 6px;text-wrap:balance;font-weight:700;letter-spacing:-.01em}
+header p{margin:0;color:var(--muted);max-width:70ch}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:24px;align-items:start}
+@media (max-width:900px){.layout{grid-template-columns:1fr}}
+.form{display:grid;gap:16px}
+fieldset{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:16px 18px 18px;margin:0;display:grid;gap:16px;min-width:0}
+legend{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;font-weight:600;color:var(--accent);padding:0 6px}
+.q{display:grid;gap:7px}
+.q.off{opacity:.45}
+.q-label{font-weight:600}
+.q-help{color:var(--muted);font-size:.86rem}
+.q-off-note{color:var(--muted);font-size:.82rem;font-style:italic}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{position:relative}
+.chip input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.chip span{display:inline-block;padding:5px 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface-2);font-size:.9rem;font-variant-numeric:tabular-nums;font-family:"IBM Plex Mono",ui-monospace,monospace;white-space:nowrap}
+.chip.text span{font-family:inherit}
+.chip input:checked + span{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.chip input:focus-visible + span{outline:2px solid var(--accent);outline-offset:2px}
+.chip input:disabled{cursor:not-allowed}
+.manual{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.manual input,.num input{font:inherit;font-family:"IBM Plex Mono",ui-monospace,monospace;width:9.5rem;max-width:100%;padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink)}
+.manual input:focus,.num input:focus{outline:2px solid var(--accent);outline-offset:1px}
+.range{font-size:.82rem;color:var(--muted)}
+.err{font-size:.82rem;color:var(--bad)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.num{display:grid;gap:4px}
+.num label{font-size:.88rem;font-weight:500}
+.results{position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px);display:grid;gap:14px}
+@media (max-width:900px){.results{position:static}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:grid;gap:10px}
+.headline{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.headline .k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;font-weight:600;opacity:.9}
+.headline .big{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:3rem;line-height:1;font-weight:600;font-variant-numeric:tabular-nums}
+.headline .big small{font-size:1rem;font-family:"IBM Plex Sans",sans-serif;font-weight:500;margin-left:6px}
+.headline .sub{font-size:.9rem}
+.rows{display:grid;gap:6px;margin:0}
+.rows div{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dashed var(--line);padding-bottom:5px}
+.rows div:last-child{border-bottom:0;padding-bottom:0}
+.rows dt{color:var(--muted)}
+.rows dd{margin:0;font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;text-align:right}
+h2{font-size:.78rem;letter-spacing:.09em;text-transform:uppercase;margin:0;color:var(--muted);font-weight:600}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.88rem;font-variant-numeric:tabular-nums}
+th,td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:600}
+td{font-family:"IBM Plex Mono",ui-monospace,monospace}
+tr.cur td{background:var(--accent-soft);font-weight:600}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:.78rem;font-weight:600}
+.pill.ok{background:var(--accent-soft);color:var(--good)}
+.pill.low{background:var(--bad-soft);color:var(--bad)}
+.note{font-size:.85rem;padding:9px 11px;border-radius:8px;background:var(--warn-soft);color:var(--ink);border-left:3px solid var(--warn)}
+.note.err-box{background:var(--bad-soft);border-left-color:var(--bad)}
+pre.gp{margin:0;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.8rem;white-space:pre-wrap;background:var(--surface-2);border-radius:7px;padding:10px;color:var(--ink)}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+button{font:inherit;font-size:.88rem;padding:6px 12px;border-radius:7px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.foot{color:var(--muted);font-size:.82rem;max-width:80ch}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Denek Sayısı Hesaplayıcı</h1>
+    <p>Primer nöron kültürü deneylerinde gereken gebe dişi sayısını hesaplar. Analiz birimi hayvandır: aynı hayvandan gelen kuyucuk ve hücreler ortalaması alınarak tek gözlem sayılır. Hesaplar G*Power 3.1 ile aynı yöntemi kullanır. Açılışta etik kurul ekindeki senaryo yüklüdür.</p>
+  </header>
+
+  <div class="layout">
+    <form class="form" id="form" novalidate>
+      <fieldset>
+        <legend>Deney tasarımı</legend>
+        <div class="q" id="q-design"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>İstatistiksel ölçütler</legend>
+        <div class="q" id="q-alpha"></div>
+        <div class="q" id="q-power"></div>
+        <div class="q" id="q-tail"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Etki büyüklüğü</legend>
+        <div class="q" id="q-source"></div>
+        <div class="q" id="q-effect"></div>
+        <div class="q" id="q-means"></div>
+        <div class="q" id="q-sdlevel"></div>
+        <div class="q" id="q-icc"></div>
+        <div class="q" id="q-msub"></div>
+        <div class="q" id="q-rho"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Tekrarlı ölçüm (çok gruplu) ayarları</legend>
+        <div class="q" id="q-groups"></div>
+        <div class="q" id="q-feffect"></div>
+        <div class="q" id="q-eps"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Kayıp ve embriyo</legend>
+        <div class="q" id="q-sparemode"></div>
+        <div class="q" id="q-spare"></div>
+        <div class="q" id="q-loss"></div>
+        <div class="q" id="q-embryo"></div>
+      </fieldset>
+    </form>
+
+    <aside class="results" aria-live="polite">
+      <div class="card headline">
+        <div class="k">Toplam gebe dişi</div>
+        <div class="big" id="r-total">—</div>
+        <div class="sub" id="r-sub"></div>
+      </div>
+      <div class="card">
+        <h2>Ayrıntı</h2>
+        <dl class="rows" id="r-rows"></dl>
+        <div id="r-notes" style="display:grid;gap:8px"></div>
+      </div>
+      <div class="card">
+        <h2>Duyarlılık</h2>
+        <div class="tbl"><table id="r-sens"></table></div>
+      </div>
+      <div class="card">
+        <h2>G*Power ayarları</h2>
+        <pre class="gp" id="r-gp"></pre>
+        <div class="btns">
+          <button type="button" id="b-copy">Ayarları kopyala</button>
+          <button type="button" id="b-reset">Etik kurul senaryosuna dön</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <p class="foot">Etki büyüklüğü dayanağı (etik kurul eki): Abidian ve ark., Small 2010; 6:421–429. Değerler ortalama ± SEM (n = 10 nörit); nörit düzeyindeki SD = SEM·√10. Hesap yöntemi: t testlerinde merkezi olmayan t dağılımı (sayısal integral), tekrarlı ölçüm ANOVA'da merkezi olmayan F dağılımı (G*Power "Repeated measures, within factors" formülü).</p>
+</div>
+
+<script>
+/* ============================================================
+   İSTATİSTİK FONKSİYONLARI
+   ============================================================ */
+function gammaln(x){
+  const c=[76.18009172947146,-86.50532032941677,24.01409824083091,-1.231739572450155,0.1208650973866179e-2,-0.5395239384953e-5];
+  let y=x, tmp=x+5.5; tmp-=(x+0.5)*Math.log(tmp);
+  let ser=1.000000000190015;
+  for(let j=0;j<6;j++) ser+=c[j]/++y;
+  return -tmp+Math.log(2.5066282746310005*ser/x);
+}
+function betacf(a,b,x){
+  const MAXIT=300, EPS=3e-14, FPMIN=1e-300;
+  let qab=a+b, qap=a+1, qam=a-1, c=1, d=1-qab*x/qap;
+  if(Math.abs(d)<FPMIN) d=FPMIN; d=1/d; let h=d;
+  for(let m=1;m<=MAXIT;m++){
+    const m2=2*m;
+    let aa=m*(b-m)*x/((qam+m2)*(a+m2));
+    d=1+aa*d; if(Math.abs(d)<FPMIN) d=FPMIN;
+    c=1+aa/c; if(Math.abs(c)<FPMIN) c=FPMIN;
+    d=1/d; h*=d*c;
+    aa=-(a+m)*(qab+m)*x/((a+m2)*(qap+m2));
+    d=1+aa*d; if(Math.abs(d)<FPMIN) d=FPMIN;
+    c=1+aa/c; if(Math.abs(c)<FPMIN) c=FPMIN;
+    d=1/d; const del=d*c; h*=del;
+    if(Math.abs(del-1)<EPS) break;
+  }
+  return h;
+}
+function ibeta(x,a,b){
+  if(x<=0) return 0; if(x>=1) return 1;
+  const bt=Math.exp(gammaln(a+b)-gammaln(a)-gammaln(b)+a*Math.log(x)+b*Math.log(1-x));
+  if(x<(a+1)/(a+b+2)) return bt*betacf(a,b,x)/a;
+  return 1-bt*betacf(b,a,1-x)/b;
+}
+function erfc(x){
+  const z=Math.abs(x), t=1/(1+0.5*z);
+  const r=t*Math.exp(-z*z-1.26551223+t*(1.00002368+t*(0.37409196+t*(0.09678418+t*(-0.18628806+t*(0.27886807+t*(-1.13520398+t*(1.48851587+t*(-0.82215223+t*0.17087277)))))))));
+  return x>=0?r:2-r;
+}
+const Phi=z=>0.5*erfc(-z/Math.SQRT2);
+function tcdf(t,df){const p=0.5*ibeta(df/(df+t*t),df/2,0.5);return t>0?1-p:p;}
+function tinv(p,df){
+  let lo=-1e4, hi=1e4;
+  for(let i=0;i<200;i++){const mid=(lo+hi)/2; if(tcdf(mid,df)<p) lo=mid; else hi=mid;}
+  return (lo+hi)/2;
+}
+function fcdf(x,d1,d2){ if(x<=0) return 0; return ibeta(d1*x/(d1*x+d2),d1/2,d2/2); }
+function finv(p,d1,d2){
+  let lo=0, hi=1e4;
+  for(let i=0;i<200;i++){const mid=(lo+hi)/2; if(fcdf(mid,d1,d2)<p) lo=mid; else hi=mid;}
+  return (lo+hi)/2;
+}
+/* Güç: T = (Z + nc) / S,  S = sqrt(V/df), V ~ ki-kare(df) — S üzerinden Simpson integrali */
+function powerT(nc,df,alpha,two){
+  const c=tinv(two?1-alpha/2:1-alpha,df);
+  const lognorm=(df/2)*Math.log(df)-(df/2-1)*Math.log(2)-gammaln(df/2);
+  const dens=s=>{ if(s<=0) return df===1?Math.exp(lognorm):0; return Math.exp(lognorm+(df-1)*Math.log(s)-df*s*s/2); };
+  const g=s=>{ let p=Phi(nc-c*s); if(two) p+=Phi(-c*s-nc); return p*dens(s); };
+  const smax=1+12/Math.sqrt(df), n=2000, h=smax/n;
+  let sum=g(0)+g(smax);
+  for(let i=1;i<n;i++) sum+=(i%2?4:2)*g(i*h);
+  return Math.min(1,Math.max(0,sum*h/3));
+}
+const powPaired=(dz,n,a,two)=>powerT(dz*Math.sqrt(n),n-1,a,two);
+const powIndep=(d,n,a,two)=>powerT(d*Math.sqrt(n/2),2*n-2,a,two);
+/* Merkezi olmayan F: Poisson karışımı */
+function ncfSf(x,d1,d2,lam){
+  const y=d1*x/(d1*x+d2), half=lam/2;
+  const jmax=Math.ceil(half+12*Math.sqrt(half)+40);
+  let cdf=0;
+  for(let j=0;j<=jmax;j++){
+    const w= half===0 ? (j===0?1:0) : Math.exp(-half+j*Math.log(half)-gammaln(j+1));
+    if(w>0) cdf+=w*ibeta(y,d1/2+j,d2/2);
+  }
+  return Math.min(1,Math.max(0,1-cdf));
+}
+function powRM(f,n,m,rho,a,eps){
+  const lam=f*f*n*m*eps/(1-rho), d1=(m-1)*eps, d2=(n-1)*(m-1)*eps;
+  return ncfSf(finv(1-a,d1,d2),d1,d2,lam);
+}
+function smallestN(fn,target,nmin=2,nmax=2000){
+  for(let n=nmin;n<=nmax;n++){ const p=fn(n); if(p>=target) return {n,p}; }
+  return null;
+}
+
+/* ============================================================
+   FORM TANIMI
+   ============================================================ */
+const fmt=(v,d=2)=>Number(v).toLocaleString('tr-TR',{minimumFractionDigits:0,maximumFractionDigits:d});
+const S={}; // durum
+
+const DEFAULTS={
+  design:'paired', alpha:'0.05', power:'0.80', tail:'two', source:'direct',
+  effect:'1.5', sdlevel:'unit', icc:'0.3', msub:'10', rho:'0.5',
+  groups:'5', feffect:'0.50', eps:'1', sparemode:'fixed', spare:'1', loss:'15'
+};
+
+const NUMQ={
+  alpha:{label:'Anlamlılık düzeyi α',help:'Birinci tür hata olasılığı.',presets:['0.01','0.05','0.10'],min:0.001,max:0.2},
+  power:{label:'Hedef güç (1 − β)',help:'Gerçek bir etkiyi yakalama olasılığı. Etik kurullarda en az 0,80 beklenir.',presets:['0.80','0.85','0.90','0.95'],min:0.5,max:0.99},
+  effect:{label:'Etki büyüklüğü (d ya da dz)',help:'Eşleştirilmiş tasarımda dz, bağımsız gruplarda Cohen d. Cohen ölçütü: 0,2 küçük · 0,5 orta · 0,8 büyük.',presets:['0.8','1.0','1.5','2.0','2.5','3.0'],min:0.05,max:10},
+  icc:{label:'Hayvan içi korelasyon (ICC)',help:'Aynı hayvandan gelen alt ölçümlerin birbirine benzerliği. 0 = tamamen bağımsız, 1 = birebir aynı.',presets:['0.1','0.3','0.5','0.7'],min:0,max:0.99},
+  msub:{label:'Hayvan başına ortalamaya giren alt ölçüm sayısı (m)',help:'Ör. hayvan başına ölçülen nörit, hücre ya da kuyucuk sayısı.',presets:['5','10','20','30'],min:1,max:1000,int:true},
+  rho:{label:'Gruplar arası korelasyon ρ',help:'Aynı hayvandan gelen iki (ya da daha fazla) grubun değerleri arasındaki korelasyon. Bilinmiyorsa 0,5 yaygın varsayımdır.',presets:['0.3','0.5','0.7'],min:-0.99,max:0.99},
+  groups:{label:'Grup (yüzey) sayısı',help:'Aynı hayvanın hücrelerinin ekildiği grup sayısı.',presets:['3','4','5','6'],min:2,max:20,int:true},
+  feffect:{label:'Etki büyüklüğü f',help:'Cohen ölçütü: 0,10 küçük · 0,25 orta · 0,40 büyük.',presets:['0.25','0.40','0.50','0.75'],min:0.05,max:2},
+  eps:{label:'Küresellik düzeltmesi ε',help:'1 = küresellik varsayımı sağlanıyor (G*Power varsayılanı).',presets:['1'],min:null,max:1},
+  spare:{label:'Yedek hayvan sayısı',help:'Disseksiyon başarısızlığı veya kontaminasyon için.',presets:['0','1','2'],min:0,max:20,int:true},
+  loss:{label:'Beklenen kayıp oranı (%)',help:'Gerekli sayı (1 − kayıp oranı) ile bölünüp yukarı yuvarlanır.',presets:['10','15','20'],min:0,max:80}
+};
+const CHOICEQ={
+  design:{label:'Deney tasarımı',help:'Bizim çalışmada her hayvanın hücreleri tüm yüzeylere ekildiği için tasarım eşleştirilmiştir.',opts:[['indep','İki bağımsız grup (her grup ayrı hayvanlardan)'],['paired','İki eşleştirilmiş grup (aynı hayvanlar iki gruba)'],['rm','Çok gruplu tekrarlı ölçüm / blok (aynı hayvan tüm gruplara)']]},
+  tail:{label:'Test yönü',help:'Etik kurullarda çift yönlü test standarttır; tek yönlü test gerekçe ister.',opts:[['two','Çift yönlü'],['one','Tek yönlü']]},
+  source:{label:'Etki büyüklüğü kaynağı',help:'',opts:[['direct','Etki büyüklüğünü doğrudan seç / gir'],['means','Ortalama ve standart sapmadan hesapla']]},
+  sdlevel:{label:'Standart sapmalar hangi düzeyde ölçüldü?',help:'Literatürdeki SD çoğu zaman nörit ya da hücre başınadır; hayvan ortalamasının SD\'si bundan küçüktür.',opts:[['unit','Hayvan / kültür ortalaması düzeyinde'],['sub','Alt birim düzeyinde (nörit, hücre, kuyucuk)']]},
+  sparemode:{label:'Kayıp payı nasıl eklensin?',help:'',opts:[['fixed','Sabit sayıda yedek hayvan'],['pct','Yüzde kayıp oranı']]}
+};
+
+function chipsHTML(name,opts,cur,disabled,isText){
+  return '<div class="chips" role="radiogroup">'+opts.map(([v,l])=>
+    `<label class="chip${isText?' text':''}"><input type="radio" name="${name}" value="${v}" ${v===cur?'checked':''} ${disabled?'disabled':''}><span>${l}</span></label>`).join('')+'</div>';
+}
+function rangeText(q){
+  const lo=q.min===null?'1/(grup sayısı − 1)':fmt(q.min,3), hi=fmt(q.max,3);
+  return `İzin verilen aralık: ${lo} – ${hi}${q.int?' (tam sayı)':''}`;
+}
+function renderNum(id,disabled,offNote){
+  const q=NUMQ[id], el=document.getElementById('q-'+id);
+  const st=S[id];
+  const isManual=st.mode==='manual';
+  const opts=q.presets.map(v=>[v,fmt(v,3)]).concat([['__manual','Elle gir']]);
+  el.className='q'+(disabled?' off':'');
+  el.innerHTML=`<div class="q-label" id="lab-${id}">${q.label}</div>`+
+    (q.help?`<div class="q-help">${q.help}</div>`:'')+
+    (disabled&&offNote?`<div class="q-off-note">${offNote}</div>`:'')+
+    chipsHTML('c-'+id,opts,isManual?'__manual':st.preset,disabled,false)+
+    `<div class="manual" ${isManual?'':'hidden'}>
+       <input id="m-${id}" type="number" inputmode="decimal" step="any" aria-labelledby="lab-${id}" value="${st.manual??''}" ${disabled?'disabled':''} placeholder="değer">
+       <span class="range">${rangeText(q)}</span>
+     </div>
+     <div class="err" id="e-${id}" hidden></div>`;
+}
+function renderChoice(id,disabled,offNote){
+  const q=CHOICEQ[id], el=document.getElementById('q-'+id);
+  el.className='q'+(disabled?' off':'');
+  el.innerHTML=`<div class="q-label">${q.label}</div>`+(q.help?`<div class="q-help">${q.help}</div>`:'')+
+    (disabled&&offNote?`<div class="q-off-note">${offNote}</div>`:'')+
+    chipsHTML('c-'+id,q.opts,S[id],disabled,true);
+}
+function renderMeans(disabled,offNote){
+  const el=document.getElementById('q-means');
+  el.className='q'+(disabled?' off':'');
+  const f=(k,l,r)=>`<div class="num"><label for="n-${k}">${l}</label><input id="n-${k}" type="number" step="any" inputmode="decimal" value="${S.means[k]}" ${disabled?'disabled':''}><span class="range">${r}</span></div>`;
+  el.innerHTML=`<div class="q-label">Ortalama ve standart sapmalar</div>
+    <div class="q-help">Grup 1 kontrol (ör. G4 düzlemsel film), grup 2 test (ör. G5 nanofiber). Açılış değerleri Abidian 2010'dan: film ~1100 µm, nanotüp 2100 µm, nörit düzeyi SD 474 µm.</div>`+
+    (disabled&&offNote?`<div class="q-off-note">${offNote}</div>`:'')+
+    `<div class="grid2">${f('m1','Grup 1 ortalaması','Herhangi bir sayı')}${f('s1','Grup 1 SD','İzin verilen aralık: 0’dan büyük')}${f('m2','Grup 2 ortalaması','Herhangi bir sayı')}${f('s2','Grup 2 SD','İzin verilen aralık: 0’dan büyük')}</div>
+    <div class="err" id="e-means" hidden></div>`;
+}
+function renderEmbryo(){
+  const el=document.getElementById('q-embryo');
+  el.innerHTML=`<div class="q-label">Gebe dişi başına embriyo sayısı</div>
+    <div class="q-help">Toplam embriyo aralığını hesaplamak için.</div>
+    <div class="grid2">
+      <div class="num"><label for="n-emin">En az</label><input id="n-emin" type="number" step="1" value="${S.emb.min}"><span class="range">İzin verilen aralık: 1 – 25</span></div>
+      <div class="num"><label for="n-emax">En çok</label><input id="n-emax" type="number" step="1" value="${S.emb.max}"><span class="range">İzin verilen aralık: 1 – 25 (en azdan küçük olamaz)</span></div>
+    </div><div class="err" id="e-emb" hidden></div>`;
+}
+
+function initState(){
+  for(const k of Object.keys(NUMQ)) S[k]={mode:'preset',preset:DEFAULTS[k],manual:''};
+  for(const k of Object.keys(CHOICEQ)) S[k]=DEFAULTS[k];
+  S.means={m1:1100,s1:474,m2:2100,s2:474};
+  S.emb={min:10,max:14};
+}
+
+function renderAll(){
+  const rm=S.design==='rm', direct=S.source==='direct';
+  renderChoice('design');
+  renderNum('alpha'); renderNum('power');
+  renderChoice('tail',rm,'Çok gruplu F testinde yön seçilmez.');
+  renderChoice('source',rm,'Çok gruplu tasarımda etki büyüklüğü f olarak aşağıda girilir.');
+  renderNum('effect',rm||!direct, rm?'Çok gruplu tasarımda kullanılmaz.':'Ortalama ve SD\'den hesaplanıyor.');
+  renderMeans(rm||direct, rm?'Çok gruplu tasarımda kullanılmaz.':'Etki büyüklüğü doğrudan seçildiği için kullanılmıyor.');
+  const meansOn=!rm&&!direct;
+  renderChoice('sdlevel',!meansOn,'Yalnızca ortalama ve SD\'den hesaplarken kullanılır.');
+  const subOn=meansOn&&S.sdlevel==='sub';
+  renderNum('icc',!subOn,'Yalnızca SD alt birim düzeyindeyse kullanılır.');
+  renderNum('msub',!subOn,'Yalnızca SD alt birim düzeyindeyse kullanılır.');
+  const rhoOn=rm||(S.design==='paired'&&meansOn);
+  renderNum('rho',!rhoOn, S.design==='indep'?'Bağımsız gruplarda kullanılmaz.':'dz doğrudan girildiğinde korelasyon zaten içindedir.');
+  renderNum('groups',!rm,'Yalnızca çok gruplu tasarımda kullanılır.');
+  renderNum('feffect',!rm,'Yalnızca çok gruplu tasarımda kullanılır.');
+  renderNum('eps',!rm,'Yalnızca çok gruplu tasarımda kullanılır.');
+  renderChoice('sparemode');
+  renderNum('spare',S.sparemode!=='fixed','Yüzde kayıp oranı seçildi.');
+  renderNum('loss',S.sparemode!=='pct','Sabit yedek sayısı seçildi.');
+  renderEmbryo();
+  bind();
+  compute();
+}
+
+function bind(){
+  document.querySelectorAll('input[type=radio]').forEach(r=>r.addEventListener('change',e=>{
+    const id=e.target.name.slice(2), v=e.target.value;
+    if(NUMQ[id]){
+      if(v==='__manual'){S[id].mode='manual';}
+      else {S[id].mode='preset';S[id].preset=v;}
+      renderAll();
+      if(v==='__manual'){const m=document.getElementById('m-'+id); if(m) m.focus();}
+    } else { S[id]=v; renderAll(); }
+  }));
+  for(const id of Object.keys(NUMQ)){
+    const m=document.getElementById('m-'+id);
+    if(m) m.addEventListener('input',()=>{S[id].manual=m.value;compute();});
+  }
+  for(const k of ['m1','s1','m2','s2']){
+    const el=document.getElementById('n-'+k);
+    el.addEventListener('input',()=>{S.means[k]=el.value;compute();});
+  }
+  for(const k of ['min','max']){
+    const el=document.getElementById('n-e'+k);
+    el.addEventListener('input',()=>{S.emb[k]=el.value;compute();});
+  }
+}
+
+/* değer okuma + doğrulama */
+function readNum(id,errs,active){
+  const q=NUMQ[id], st=S[id], errEl=document.getElementById('e-'+id);
+  if(errEl){errEl.hidden=true;errEl.textContent='';}
+  if(!active) return null;
+  if(st.mode==='preset') return parseFloat(st.preset);
+  const raw=String(st.manual).replace(',','.').trim();
+  const v=parseFloat(raw);
+  let lo=q.min, hi=q.max;
+  if(id==='eps') lo=1/(currentGroups()-1);
+  let msg='';
+  if(raw===''||isNaN(v)) msg='Bir sayı girin.';
+  else if(v<lo||v>hi) msg=`Değer ${fmt(lo,3)} ile ${fmt(hi,3)} arasında olmalı.`;
+  else if(q.int&&!Number.isInteger(v)) msg='Tam sayı girin.';
+  if(msg){ if(errEl){errEl.hidden=false;errEl.textContent=msg;} errs.push(q.label+': '+msg); return null; }
+  return v;
+}
+function currentGroups(){
+  const st=S.groups; if(st.mode==='preset') return parseInt(st.preset);
+  const v=parseInt(st.manual); return (v>=2&&v<=20)?v:5;
+}
+
+function compute(){
+  const errs=[], notes=[];
+  const rm=S.design==='rm', direct=S.source==='direct', meansOn=!rm&&!direct;
+  const two=rm?true:S.tail==='two';
+  const alpha=readNum('alpha',errs,true), target=readNum('power',errs,true);
+  let effect=null, effName=rm?'f':(S.design==='paired'?'dz':'d'), extra=[];
+  let rho=null, m=null, eps=null;
+
+  if(rm){
+    m=readNum('groups',errs,true); effect=readNum('feffect',errs,true);
+    rho=readNum('rho',errs,true); eps=readNum('eps',errs,true);
+    if(rho!==null&&(rho<0)){errs.push('Tekrarlı ölçümde ρ 0 ile 0,99 arasında olmalı.');rho=null;}
+  } else if(direct){
+    effect=readNum('effect',errs,true);
+  } else {
+    const me=document.getElementById('e-means'); me.hidden=true;
+    const m1=parseFloat(String(S.means.m1).replace(',','.')), s1=parseFloat(String(S.means.s1).replace(',','.'));
+    const m2=parseFloat(String(S.means.m2).replace(',','.')), s2=parseFloat(String(S.means.s2).replace(',','.'));
+    if([m1,s1,m2,s2].some(isNaN)||s1<=0||s2<=0){
+      me.hidden=false; me.textContent='Dört değeri de girin; SD 0’dan büyük olmalı.'; errs.push('Ortalama/SD eksik veya geçersiz.');
+    } else {
+      let a=s1,b=s2;
+      if(S.sdlevel==='sub'){
+        const icc=readNum('icc',errs,true), ms=readNum('msub',errs,true);
+        if(icc!==null&&ms!==null){
+          const k=Math.sqrt(icc+(1-icc)/ms); a=s1*k; b=s2*k;
+          extra.push(['SD dönüşümü (alt birim → hayvan)',`${fmt(s1,0)} → ${fmt(a,0)} · ${fmt(s2,0)} → ${fmt(b,0)}`]);
+        }
+      }
+      const diff=Math.abs(m2-m1);
+      if(S.design==='indep'){ effect=diff/Math.sqrt((a*a+b*b)/2); }
+      else {
+        rho=readNum('rho',errs,true);
+        if(rho!==null){ const sd=Math.sqrt(a*a+b*b-2*rho*a*b); effect=diff/sd; extra.push(['Farkların SD\'si',fmt(sd,1)]); }
+      }
+      if(diff===0){errs.push('İki ortalama aynı; etki büyüklüğü 0.');effect=null;}
+    }
+  }
+
+  let spare=null, loss=null;
+  if(S.sparemode==='fixed') spare=readNum('spare',errs,true); else loss=readNum('loss',errs,true);
+  const eErr=document.getElementById('e-emb'); eErr.hidden=true;
+  const emin=parseInt(S.emb.min), emax=parseInt(S.emb.max);
+  let embOk=!(isNaN(emin)||isNaN(emax)||emin<1||emax>25||emin>emax);
+  if(!embOk){eErr.hidden=false;eErr.textContent='1–25 arasında tam sayılar girin; en çok, en azdan küçük olamaz.';}
+
+  const out=document.getElementById('r-total'), sub=document.getElementById('r-sub');
+  const rows=document.getElementById('r-rows'), nb=document.getElementById('r-notes');
+  const sens=document.getElementById('r-sens'), gp=document.getElementById('r-gp');
+
+  if(errs.length||effect===null||alpha===null||target===null){
+    out.textContent='—'; sub.textContent='Hesap için eksik ya da hatalı alanları düzeltin.';
+    rows.innerHTML=''; sens.innerHTML=''; gp.textContent='';
+    nb.innerHTML=errs.map(e=>`<div class="note err-box">${e}</div>`).join('');
+    return;
+  }
+
+  let fn;
+  if(rm) fn=n=>powRM(effect,n,m,rho,alpha,eps);
+  else if(S.design==='paired') fn=n=>powPaired(effect,n,alpha,two);
+  else fn=n=>powIndep(effect,n,alpha,two);
+
+  const res=smallestN(fn,target);
+  if(!res){
+    out.textContent='—'; sub.textContent='2000 hayvana kadar hedef güce ulaşılamıyor; etki büyüklüğünü kontrol edin.';
+    rows.innerHTML=''; sens.innerHTML=''; gp.textContent=''; nb.innerHTML=''; return;
+  }
+  const n=res.n;
+  const withLoss=k=> spare!==null ? k+spare : Math.ceil(k/(1-loss/100));
+  const perGroupTotal=withLoss(n);
+  const total = S.design==='indep' ? 2*perGroupTotal : perGroupTotal;
+
+  out.innerHTML=`${total}<small>gebe dişi</small>`;
+  const lossTxt = spare!==null ? `${spare} yedek` : `%${fmt(loss,1)} kayıp payı`;
+  sub.textContent = S.design==='indep'
+    ? `Grup başına ${n} + ${lossTxt} → ${perGroupTotal}; 2 grup ayrı hayvanlardan.`
+    : `${n} hayvan (güç analizi) + ${lossTxt}. Her hayvan tüm gruplara hücre verir.`;
+
+  const embTxt = embOk ? (()=>{
+    const base = S.design==='indep' ? 2*n : n;
+    return `${base*emin}–${base*emax} (yedekle ${total*emin}–${total*emax})`;
+  })() : '—';
+
+  const r=[
+    ['Tasarım', {indep:'İki bağımsız grup',paired:'İki eşleştirilmiş grup',rm:`${m} grup, tekrarlı ölçüm`}[S.design]],
+    ['Etki büyüklüğü '+effName, fmt(effect,2)],
+    ...extra,
+    ...(rho!==null?[['Korelasyon ρ',fmt(rho,2)]]:[]),
+    ['α / hedef güç', `${fmt(alpha,3)} / ${fmt(target,2)}`],
+    ...(rm?[]:[['Test yönü', two?'Çift yönlü':'Tek yönlü']]),
+    [S.design==='indep'?'Grup başına gereken':'Gereken hayvan', `${n}`],
+    ['Gerçekleşen güç', fmt(res.p,3)],
+    ['Toplam gebe dişi', `${total}`],
+    ['Embriyo (yaklaşık)', embTxt]
+  ];
+  rows.innerHTML=r.map(([k,v])=>`<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
+
+  // notlar
+  if(S.design!=='indep'){
+    const p3=fn(3);
+    notes.push(`<div class="note">3 hayvanla güç: <b>${fmt(p3,2)}</b> <span class="pill ${p3>=target?'ok':'low'}">${p3>=target?'yeterli':'yetersiz'}</span></div>`);
+  }
+  if(!two) notes.push('<div class="note">Tek yönlü test seçildi; etik kurul başvurusunda gerekçe gösterilmelidir.</div>');
+  if(n===2&&res.p>0.99) notes.push('<div class="note">Etki büyüklüğü çok büyük: en küçük örneklem (2) bile hedef gücü fazlasıyla aşıyor. Varsayımı kontrol edin.</div>');
+  nb.innerHTML=notes.join('');
+
+  // duyarlılık tablosu
+  const list = rm ? [0.25,0.40,0.50,0.75,1.0] : [0.8,1.0,1.5,2.0,2.5,3.0];
+  if(!list.some(x=>Math.abs(x-effect)<1e-9)) list.push(effect);
+  list.sort((a,b)=>a-b);
+  let html=`<thead><tr><th>${effName}</th><th>Gereken</th><th>Toplam</th>${S.design!=='indep'?'<th>3 hayvanla güç</th>':''}</tr></thead><tbody>`;
+  for(const e of list){
+    let f2;
+    if(rm) f2=k=>powRM(e,k,m,rho,alpha,eps);
+    else if(S.design==='paired') f2=k=>powPaired(e,k,alpha,two);
+    else f2=k=>powIndep(e,k,alpha,two);
+    const rr=smallestN(f2,target);
+    const nn=rr?rr.n:null;
+    const tt=nn===null?'—':(S.design==='indep'?2*withLoss(nn):withLoss(nn));
+    html+=`<tr class="${Math.abs(e-effect)<1e-9?'cur':''}"><td>${fmt(e,2)}</td><td>${nn??'—'}</td><td>${tt}</td>${S.design!=='indep'?`<td>${fmt(f2(3),2)}</td>`:''}</tr>`;
+  }
+  sens.innerHTML=html+'</tbody>';
+
+  // G*Power ayarları
+  const g = rm
+    ? `Test family: F tests\nStatistical test: ANOVA: Repeated measures, within factors\nType of power analysis: A priori\nEffect size f: ${effect.toFixed(2)}\nα err prob: ${alpha}\nPower (1-β err prob): ${target}\nNumber of groups: 1\nNumber of measurements: ${m}\nCorr among rep measures: ${rho}\nNonsphericity correction ε: ${eps}\n→ Total sample size: ${n}`
+    : S.design==='paired'
+      ? `Test family: t tests\nStatistical test: Means: Difference between two dependent means (matched pairs)\nType of power analysis: A priori\nTail(s): ${two?'Two':'One'}\nEffect size dz: ${effect.toFixed(2)}\nα err prob: ${alpha}\nPower (1-β err prob): ${target}\n→ Total sample size: ${n}`
+      : `Test family: t tests\nStatistical test: Means: Difference between two independent means (two groups)\nType of power analysis: A priori\nTail(s): ${two?'Two':'One'}\nEffect size d: ${effect.toFixed(2)}\nα err prob: ${alpha}\nPower (1-β err prob): ${target}\nAllocation ratio N2/N1: 1\n→ Sample size group 1 / group 2: ${n} / ${n}`;
+  gp.textContent=g;
+}
+
+document.getElementById('b-copy').addEventListener('click',()=>{
+  const t=document.getElementById('r-gp').textContent, b=document.getElementById('b-copy');
+  const done=()=>{b.textContent='Kopyalandı';setTimeout(()=>b.textContent='Ayarları kopyala',1500);};
+  try{ navigator.clipboard.writeText(t).then(done).catch(sel); }catch(e){ sel(); }
+  function sel(){ const r=document.createRange(); r.selectNodeContents(document.getElementById('r-gp')); const s=getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent='Seçildi, kopyalayın'; }
+});
+document.getElementById('b-reset').addEventListener('click',()=>{initState();renderAll();});
+document.getElementById('form').addEventListener('submit',e=>e.preventDefault());
+
+initState();
+renderAll();
+</script>
+
+</body>
+</html>
